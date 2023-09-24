@@ -1,10 +1,15 @@
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import addImage from "../assets/add-picture.png";
 import { useState } from "react";
-import { auth, storage } from "../firebase";
-import { ref } from "firebase/storage";
+import { auth, db, storage } from "../firebase";
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { doc, setDoc } from "firebase/firestore";
+import { Link, useNavigate } from "react-router-dom";
+
 const Register = () => {
   const [err, setErr] = useState(false);
+  const navigate = useNavigate();
+
   const handlesubmit = async (event) => {
     event.preventDefault();
     const displayName = event.target[0].value;
@@ -13,6 +18,7 @@ const Register = () => {
     const file = event.target[3].files[0];
     try {
       const res = await createUserWithEmailAndPassword(auth, email, password);
+      console.log(res);
       const storageRef = ref(storage, displayName);
       const uploadTask = uploadBytesResumable(storageRef, file);
       uploadTask.on(
@@ -25,11 +31,21 @@ const Register = () => {
               displayName: displayName,
               photoURL: downloadURL,
             });
+            console.log(res.user.uid);
+            await setDoc(doc(db, "users", res.user.uid), {
+              uid: res.user.uid,
+              displayName,
+              email,
+              photoURL: downloadURL,
+            });
+            await setDoc(doc(db, "usersChat", res.user.uid), {});
+            navigate("/");
             console.log("File available at", downloadURL);
           });
         }
       );
     } catch (error) {
+      console.error(error);
       setErr(true);
     }
   };
@@ -65,7 +81,9 @@ const Register = () => {
           <button type='submit'>Sign Up</button>
           {err && <span>Something went wrong</span>}
         </form>
-        <p>You don't have account? Login</p>
+        <p>
+          You don't have account? <Link to='/login'>Login</Link>
+        </p>
       </div>
     </div>
   );
